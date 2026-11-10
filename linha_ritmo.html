@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linha & Ritmo — Simulador de Balanceamento de Linha</title>
+<style>
+  :root {
+    --bg: #F2F3F0;
+    --surface: #FFFFFF;
+    --surface-raised: #FBFBF9;
+    --ink: #171B1E;
+    --muted: #5B6570;
+    --faint: #8B949C;
+    --accent: #1F6F6B;
+    --accent-ink: #FFFFFF;
+    --accent-soft: #E3EFEE;
+    --alert: #B8501E;
+    --alert-soft: #FBE9DF;
+    --good: #2E7D4F;
+    --good-soft: #E4F2E9;
+    --line: #D9DDD8;
+    --grid: rgba(31,111,107,0.07);
+    --shadow: 0 1px 2px rgba(20,25,25,0.06);
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Consolas, monospace;
+    --sans: -apple-system, "Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
+    --radius: 3px;
+  }
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --bg: #12171A;
+      --surface: #1A2024;
+      --surface-raised: #1F262A;
+      --ink: #E9ECEC;
+      --muted: #9AA7AC;
+      --faint: #6C787D;
+      --accent: #45A69E;
+      --accent-ink: #08201E;
+      --accent-soft: #1D3634;
+      --alert: #E07C4A;
+      --alert-soft: #3A2419;
+      --good: #6FBF8C;
+      --good-soft: #1C3327;
+      --line: #2B3236;
+      --grid: rgba(69,166,158,0.08);
+      --shadow: 0 1px 2px rgba(0,0,0,0.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12171A;
+    --surface: #1A2024;
+    --surface-raised: #1F262A;
+    --ink: #E9ECEC;
+    --muted: #9AA7AC;
+    --faint: #6C787D;
+    --accent: #45A69E;
+    --accent-ink: #08201E;
+    --accent-soft: #1D3634;
+    --alert: #E07C4A;
+    --alert-soft: #3A2419;
+    --good: #6FBF8C;
+    --good-soft: #1C3327;
+    --line: #2B3236;
+    --grid: rgba(69,166,158,0.08);
+    --shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background:
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 28px,
+      var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  .shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 28px 20px 80px;
+  }
+
+  header.top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+  header.top .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  header.top h1 {
+    font-size: 20px;
+    margin: 0;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  header.top .tagline {
+    color: var(--muted);
+    font-size: 13.5px;
+  }
+  .badge-mono {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 3px 7px;
+    border-radius: var(--radius);
+    white-space: nowrap;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 190px 1fr;
+    gap: 32px;
+    align-items: start;
+  }
+  @media (max-width: 820px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  nav.steps {
+    position: sticky;
+    top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  nav.steps button {
+    all: unset;
+    cursor: pointer;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 10px 10px;
+    border-radius: var(--radius);
+    color: var(--muted);
+    font-size: 13.5px;
+    line-height: 1.35;
+    border-left: 2px solid transparent;
+  }
+  nav.steps button .num {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--faint);
+    padding-top: 1px;
+  }
+  nav.steps button.active {
+    color: var(--ink);
+    background: var(--surface);
+    border-left: 2px solid var(--accent);
+    box-shadow: var(--shadow);
+  }
+  nav.steps button.active .num { color: var(--accent); }
+  nav.steps button:hover:not(.active) { color: var(--ink); }
+
+  section.panel { display: none; }
+  section.panel.active { display: block; animation: fadein .25s ease; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  .panel h2 {
+    font-size: 18px;
+    margin: 0 0 4px;
+    font-weight: 700;
+  }
+  .panel > .lede {
+    color: var(--muted);
+    font-size: 13.5px;
+    margin: 0 0 22px;
+    max-width: 62ch;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+  }
+  .card + .card { margin-top: 16px; }
+
+  .card h3 {
+    font-size: 12.5px;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--muted);
+    font-weight: 600;
+    margin: 0 0 14px;
+  }
+
+  .field-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 6px;
+  }
+  @media (max-width: 640px) { .field-row { grid-template-columns: 1fr 1fr; } }
+  label {
+    display: block;
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-bottom: 5px;
+  }
+  input[type=number], input[type=text] {
+    width: 100%;
+    background: var(--surface-raised);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    padding: 8px 9px;
+    border-radius: var(--radius);
+    font-family: var(--mono);
+    font-size: 13.5px;
+  }
+  input[type=number]:focus, input[type=text]:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  table.stations {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 4px;
+  }
+  table.stations th {
+    text-align: left;
+    font-size: 11.5px;
+    color: var(--faint);
+    font-weight: 600;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  table.stations td {
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+  }
+  table.stations td.num-col { width: 34px; color: var(--faint); font-family: var(--mono); font-size: 12.5px; }
+  table.stations td.time-col { width: 140px; }
+  table.stations td.rm-col { width: 34px; }
+  table.stations input[type=text] { font-family: var(--sans); }
+
+  .icon-btn {
+    all: unset;
+    cursor: pointer;
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--faint);
+    border-radius: var(--radius);
+  }
+  .icon-btn:hover { color: var(--alert); background: var(--alert-soft); }
+
+  .btn {
+    all: unset;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13.5px;
+    font-weight: 600;
+    padding: 9px 16px;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.secondary {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink);
+  }
+  .btn.secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.ghost {
+    background: transparent;
+    color: var(--accent);
+    padding: 6px 4px;
+  }
+  .btn[disabled] { opacity: .45; cursor: not-allowed; }
+
+  .actions-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 760px) { .kpi-grid { grid-template-columns: 1fr 1fr; } }
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    box-shadow: var(--shadow);
+  }
+  .kpi .label { font-size: 11.5px; color: var(--muted); margin-bottom: 8px; }
+  .kpi .value { font-family: var(--mono); font-size: 22px; font-weight: 600; }
+  .kpi .unit { font-family: var(--mono); font-size: 12px; color: var(--faint); margin-left: 3px; }
+  .kpi.flag-bad .value { color: var(--alert); }
+  .kpi.flag-good .value { color: var(--good); }
+
+  .pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 12px;
+    margin-top: 8px;
+  }
+  .pill.bad { background: var(--alert-soft); color: var(--alert); }
+  .pill.ok { background: var(--good-soft); color: var(--good); }
+
+  .bars { display: flex; flex-direction: column; gap: 10px; }
+  .bar-row { display: grid; grid-template-columns: 118px 1fr 64px; gap: 10px; align-items: center; }
+  .bar-row .name { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-track {
+    position: relative;
+    height: 20px;
+    background: var(--surface-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: visible;
+  }
+  .bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px 0 0 2px;
+    transition: width .4s ease;
+  }
+  .bar-fill.bottleneck { background: var(--alert); }
+  .bar-row .val { font-family: var(--mono); font-size: 12.5px; color: var(--muted); text-align: right; }
+  .takt-marker {
+    position: absolute;
+    top: -4px; bottom: -4px;
+    width: 2px;
+    background: var(--ink);
+    opacity: .55;
+  }
+  .takt-marker::after {
+    content: 'takt';
+    position: absolute;
+    top: -16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .note {
+    font-size: 12.5px;
+    color: var(--muted);
+    background: var(--surface-raised);
+    border-left: 2px solid var(--line);
+    padding: 10px 12px;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    margin-top: 14px;
+  }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 820px) { .two-col { grid-template-columns: 1fr; } }
+
+  .scenario-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+  .scenario-card + .scenario-card { margin-top: 10px; }
+  .scenario-card .meta { display: flex; flex-direction: column; gap: 3px; }
+  .scenario-card .meta .name { font-weight: 600; font-size: 14px; }
+  .scenario-card .meta .sub { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .scenario-card .metrics { display: flex; gap: 18px; }
+  .scenario-card .metrics .m { text-align: right; }
+  .scenario-card .metrics .m .v { font-family: var(--mono); font-size: 14px; font-weight: 600; }
+  .scenario-card .metrics .m .l { font-size: 10.5px; color: var(--faint); }
+  @media (max-width: 700px) { .scenario-card { flex-direction: column; align-items: stretch; } .scenario-card .metrics { justify-content: space-between; } }
+
+  table.compare { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.compare th, table.compare td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; }
+  table.compare th { font-size: 11px; color: var(--faint); font-weight: 600; }
+  table.compare td.num { font-family: var(--mono); text-align: right; }
+  table.compare tr.baseline td { color: var(--muted); }
+  table.compare td.name { font-weight: 600; }
+
+  .empty-state {
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--muted);
+  }
+  .empty-state .icon { font-size: 26px; margin-bottom: 10px; opacity: .5; }
+
+  footer.tool-footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    color: var(--faint);
+    font-size: 12px;
+  }
+
+  ::selection { background: var(--accent-soft); }
+
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .slider-value { font-family: var(--mono); font-size: 12.5px; color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header class="top">
+    <div class="brand">
+      <h1>Linha &amp; Ritmo</h1>
+      <span class="tagline">simulador de balanceamento de linha de produção</span>
+    </div>
+    <span class="badge-mono">simulação de eventos discretos</span>
+  </header>
+
+  <div class="layout">
+    <nav class="steps" id="stepNav">
+      <button data-step="1" class="active"><span class="num">01</span><span>Dados da linha</span></button>
+      <button data-step="2"><span class="num">02</span><span>Situação atual</span></button>
+      <button data-step="3"><span class="num">03</span><span>Cenários de balanceamento</span></button>
+      <button data-step="4"><span class="num">04</span><span>Comparação</span></button>
+    </nav>
+
+    <main>
+      <!-- STEP 1 -->
+      <section class="panel active" id="panel-1">
+        <h2>Dados da linha de produção</h2>
+        <p class="lede">Informe os parâmetros gerais e os tempos de operação de cada posto. Esses dados alimentam os indicadores e o modelo de simulação.</p>
+
+        <div class="card">
+          <h3>Parâmetros gerais</h3>
+          <div class="field-row">
+            <div>
+              <label for="jornada">Jornada de trabalho (h/dia)</label>
+              <input type="number" id="jornada" value="8" min="0.5" step="0.5">
+            </div>
+            <div>
+              <label for="demanda">Demanda (peças/dia)</label>
+              <input type="number" id="demanda" value="360" min="1" step="1">
+            </div>
+            <div>
+              <label for="variabilidade">Variabilidade dos tempos (%)</label>
+              <input type="number" id="variabilidade" value="10" min="0" max="80" step="1">
+            </div>
+          </div>
+          <div class="field-row">
+            <div>
+              <label for="npecas">Peças a simular</label>
+              <input type="number" id="npecas" value="250" min="10" max="3000" step="10">
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Postos de trabalho</h3>
+          <table class="stations" id="stationsTable">
+            <thead>
+              <tr><th class="num-col">#</th><th>Posto</th><th class="time-col">Tempo de operação (s)</th><th class="rm-col"></th></tr>
+            </thead>
+            <tbody id="stationsBody"></tbody>
+          </table>
+          <div class="actions-row">
+            <button class="btn secondary" id="addStationBtn">+ adicionar posto</button>
+          </div>
+        </div>
+
+        <div class="actions-row">
+          <button class="btn" id="calcBtn">Calcular e simular →</button>
+          <span class="slider-value" id="calcStatus"></span>
+        </div>
+      </section>
+
+      <!-- STEP 2 -->
+      <section class="panel" id="panel-2">
+        <h2>Situação atual</h2>
+        <p class="lede">Indicadores calculados a partir dos dados informados e resultado da simulação de eventos discretos para o cenário atual.</p>
+        <div id="step2Content"><div class="empty-state"><div class="icon">◧</div>Preencha os dados no passo 1 e clique em "Calcular e simular".</div></div>
+      </section>
+
+      <!-- STEP 3 -->
+      <section class="panel" id="panel-3">
+        <h2>Cenários de balanceamento</h2>
+        <p class="lede">Redistribua tarefas entre os postos, adicione ou remova postos, e simule novas configurações para comparar com a situação atual.</p>
+        <div id="step3Content"><div class="empty-state"><div class="icon">◧</div>Calcule a situação atual no passo 1 antes de criar cenários.</div></div>
+      </section>
+
+      <!-- STEP 4 -->
+      <section class="panel" id="panel-4">
+        <h2>Comparação de cenários</h2>
+        <p class="lede">Compare a situação atual com os cenários simulados para avaliar qual configuração melhor equilibra a linha.</p>
+        <div id="step4Content"><div class="empty-state"><div class="icon">◧</div>Nenhum cenário simulado ainda.</div></div>
+      </section>
+
+      <footer class="tool-footer">Ferramenta de apoio ao balanceamento de linha via simulação de eventos discretos — protótipo de TCC.</footer>
+    </main>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- state ----------
+  const DEFAULT_STATIONS = [
+    { name: "Corte", time: 42 },
+    { name: "Montagem 1", time: 58 },
+    { name: "Montagem 2", time: 51 },
+    { name: "Solda", time: 74 },
+    { name: "Inspeção", time: 36 },
+    { name: "Embalagem", time: 45 },
+  ];
+
+  let stations = clone(DEFAULT_STATIONS);
+  let baseline = null;      // {config, indicators, sim}
+  let scenarios = [];       // list of {id, name, config, indicators, sim}
+  let scenarioSeq = 1;
+
+  function clone(x){ return JSON.parse(JSON.stringify(x)); }
+
+  // try to restore last session
+  try {
+    const saved = localStorage.getItem("linha-ritmo-config");
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && Array.isArray(parsed.stations) && parsed.stations.length) {
+        stations = parsed.stations;
+        if (parsed.jornada) document.addEventListener("DOMContentLoaded", () => setGlobals(parsed));
+      }
+    }
+  } catch(e) { /* ignore corrupt storage */ }
+
+  function setGlobals(p){
+    if (p.jornada) document.getElementById("jornada").value = p.jornada;
+    if (p.demanda) document.getElementById("demanda").value = p.demanda;
+    if (p.variabilidade !== undefined) document.getElementById("variabilidade").value = p.variabilidade;
+    if (p.npecas) document.getElementById("npecas").value = p.npecas;
+  }
+
+  function saveSession(){
+    try {
+      localStorage.setItem("linha-ritmo-config", JSON.stringify({
+        stations,
+        jornada: numVal("jornada"),
+        demanda: numVal("demanda"),
+        variabilidade: numVal("variabilidade"),
+        npecas: numVal("npecas"),
+      }));
+    } catch(e) { /* storage unavailable — non-fatal */ }
+  }
+
+  function numVal(id){ return parseFloat(document.getElementById(id).value) || 0; }
+
+  // ---------- navigation ----------
+  const navButtons = Array.from(document.querySelectorAll("#stepNav button"));
+  navButtons.forEach(btn => {
+    btn.addEventListener("click", () => goToStep(btn.dataset.step));
+  });
+  function goToStep(step){
+    navButtons.forEach(b => b.classList.toggle("active", b.dataset.step === String(step)));
+    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+    document.getElementById("panel-" + step).classList.add("active");
+  }
+
+  // ---------- stations table (step 1) ----------
+  const stationsBody = document.getElementById("stationsBody");
+
+  function renderStationsTable(){
+    stationsBody.innerHTML = "";
+    stations.forEach((st, i) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="num-col">${i+1}</td>
+        <td><input type="text" data-idx="${i}" data-field="name" value="${escapeAttr(st.name)}"></td>
+        <td class="time-col"><input type="number" min="1" step="1" data-idx="${i}" data-field="time" value="${st.time}"></td>
+        <td class="rm-col">${stations.length > 1 ? `<button class="icon-btn" data-rm="${i}" title="Remover posto">✕</button>` : ""}</td>
+      `;
+      stationsBody.appendChild(tr);
+    });
+  }
+  function escapeAttr(s){ return String(s).replace(/"/g,"&quot;"); }
+
+  stationsBody.addEventListener("input", (e) => {
+    const idx = e.target.getAttribute("data-idx");
+    const field = e.target.getAttribute("data-field");
+    if (idx === null) return;
+    if (field === "name") stations[idx].name = e.target.value;
+    if (field === "time") stations[idx].time = parseFloat(e.target.value) || 0;
+  });
+  stationsBody.addEventListener("click", (e) => {
+    const rm = e.target.getAttribute("data-rm");
+    if (rm !== null) {
+      stations.splice(parseInt(rm,10), 1);
+      renderStationsTable();
+    }
+  });
+  document.getElementById("addStationBtn").addEventListener("click", () => {
+    stations.push({ name: "Posto " + (stations.length + 1), time: 40 });
+    renderStationsTable();
+  });
+
+  renderStationsTable();
+
+  // ---------- core calculations ----------
+  function calcIndicators(cfg){
+    const times = cfg.stations.map(s => s.time);
+    const cycleTime = Math.max(...times);
+    const sumTimes = times.reduce((a,b) => a+b, 0);
+    const nStations = cfg.stations.length;
+    const taktTime = (cfg.jornada * 3600) / cfg.demanda;
+    const capacidade = Math.floor((cfg.jornada * 3600) / cycleTime);
+    const eficiencia = (sumTimes / (nStations * cycleTime)) * 100;
+    const bottleneckIdx = times.indexOf(cycleTime);
+    const atendeDemanda = cycleTime <= taktTime;
+    return { taktTime, cycleTime, sumTimes, nStations, capacidade, eficiencia, bottleneckIdx, atendeDemanda };
+  }
+
+  function gaussianRandom(){
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  function simulate(cfg){
+    // Peças são liberadas na entrada da linha em intervalos iguais ao takt
+    // time (produção puxada pela demanda), e não assim que o primeiro posto
+    // fica livre. Isso evita fila artificial quando a linha está bem
+    // balanceada, e evidencia o crescimento real da fila quando o tempo de
+    // ciclo (gargalo) ultrapassa o takt time.
+    const m = cfg.stations.length;
+    const n = Math.max(10, Math.round(cfg.npecas));
+    const variability = Math.max(0, cfg.variabilidade) / 100;
+    const taktTime = (cfg.jornada * 3600) / cfg.demanda;
+
+    const arrival = Array.from({length:n}, (_, i) => i * taktTime);
+    const finish = Array.from({length:n}, () => new Array(m).fill(0));
+    const waiting = Array.from({length:n}, () => new Array(m).fill(0));
+    const stationBusy = new Array(m).fill(0);
+
+    for (let i=0; i<n; i++){
+      for (let j=0; j<m; j++){
+        const base = cfg.stations[j].time;
+        let svc = base * (1 + variability * gaussianRandom());
+        svc = Math.max(base * 0.15, svc);
+        const prevProcess = j>0 ? finish[i][j-1] : arrival[i];
+        const prevFree = i>0 ? finish[i-1][j] : 0;
+        const start = Math.max(prevProcess, prevFree);
+        finish[i][j] = start + svc;
+        waiting[i][j] = start - prevProcess;
+        stationBusy[j] += svc;
+      }
+    }
+
+    const makespan = finish[n-1][m-1];
+    const utilization = stationBusy.map(b => (b / makespan) * 100);
+    const avgWait = [];
+    for (let j=0; j<m; j++){
+      let sum = 0;
+      for (let i=0;i<n;i++) sum += waiting[i][j];
+      avgWait.push(sum / n);
+    }
+    let leadSum = 0;
+    for (let i=0;i<n;i++){
+      leadSum += (finish[i][m-1] - arrival[i]);
+    }
+    const avgLeadTime = leadSum / n;
+    const throughputHora = (n / makespan) * 3600;
+    const bottleneckSimIdx = utilization.indexOf(Math.max(...utilization));
+
+    return { n, makespan, utilization, avgWait, avgLeadTime, throughputHora, bottleneckSimIdx };
+  }
+
+  function fmt(v, dec=1){
+    if (!isFinite(v)) return "—";
+    return v.toLocaleString("pt-BR", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  }
+  function fmtInt(v){ return Math.round(v).toLocaleString("pt-BR"); }
+
+  // ---------- rendering: bar helpers ----------
+  function stationTimeBars(stationsArr, cycleTime, taktTime, bottleneckIdx){
+    const max = Math.max(cycleTime, taktTime) * 1.15;
+    const taktPct = Math.min(100, (taktTime / max) * 100);
+    let html = `<div class="bars">`;
+    stationsArr.forEach((s, i) => {
+      const pct = Math.min(100, (s.time / max) * 100);
+      html += `
+        <div class="bar-row">
+          <div class="name">${escapeAttr(s.name)}</div>
+          <div class="bar-track">
+            <div class="bar-fill ${i===bottleneckIdx ? "bottleneck":""}" style="width:${pct}%"></div>
+            <div class="takt-marker" style="left:${taktPct}%"></div>
+          </div>
+          <div class="val">${fmt(s.time,0)}s</div>
+        </div>`;
+    });
+    html += `</div>`;
+    return html;
+  }
+
+  function utilizationBars(stationsArr, utilization, wait){
+    let html = `<div class="bars">`;
+    stationsArr.forEach((s, i) => {
+      html += `
+        <div class="bar-row">
+          <div class="name">${escapeAttr(s.name)}</div>
+          <div class="bar-track">
+            <div class="bar-fill" style="width:${Math.min(100,utilization[i])}%"></div>
+          </div>
+          <div class="val">${fmt(utilization[i],0)}%</div>
+        </div>`;
+    });
+    html += `</div>`;
+    return html;
+  }
+
+  function waitBars(stationsArr, waits){
+    // barras proporcionais à maior espera; valores exibidos em segundos
+    const maxW = Math.max(...waits, 0) || 1;
+    let html = `<div class="bars">`;
+    stationsArr.forEach((s, i) => {
+      html += `
+        <div class="bar-row">
+          <div class="name">${escapeAttr(s.name)}</div>
+          <div class="bar-track">
+            <div class="bar-fill" style="width:${Math.min(100,(waits[i]/maxW)*100)}%"></div>
+          </div>
+          <div class="val">${fmt(waits[i],1)} s</div>
+        </div>`;
+    });
+    html += `</div>`;
+    return html;
+  }
+
+  // ---------- STEP 2: situação atual ----------
+  function renderStep2(){
+    const el = document.getElementById("step2Content");
+    if (!baseline){ return; }
+    const ind = baseline.indicators;
+    const sim = baseline.sim;
+    const bnName = baseline.config.stations[ind.bottleneckIdx].name;
+
+    el.innerHTML = `
+      <div class="kpi-grid">
+        <div class="kpi"><div class="label">Takt time</div><div class="value">${fmt(ind.taktTime,0)}<span class="unit">s/peça</span></div></div>
+        <div class="kpi ${ind.atendeDemanda ? '' : 'flag-bad'}"><div class="label">Tempo de ciclo (gargalo)</div><div class="value">${fmt(ind.cycleTime,0)}<span class="unit">s</span></div>
+          <span class="pill ${ind.atendeDemanda ? 'ok':'bad'}">${ind.atendeDemanda ? 'atende à demanda' : 'não atende à demanda'}</span>
+        </div>
+        <div class="kpi"><div class="label">Capacidade teórica</div><div class="value">${fmtInt(ind.capacidade)}<span class="unit">pçs/dia</span></div></div>
+        <div class="kpi ${ind.eficiencia < 75 ? 'flag-bad' : 'flag-good'}"><div class="label">Eficiência de balanceamento</div><div class="value">${fmt(ind.eficiencia,0)}<span class="unit">%</span></div></div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <h3>Tempo por posto vs. takt time</h3>
+          ${stationTimeBars(baseline.config.stations, ind.cycleTime, ind.taktTime, ind.bottleneckIdx)}
+          <div class="note">Gargalo identificado: <strong>${escapeAttr(bnName)}</strong> — posto que define o ritmo máximo da linha.</div>
+        </div>
+        <div class="card">
+          <h3>Utilização por posto (simulação, ${sim.n} peças)</h3>
+          ${utilizationBars(baseline.config.stations, sim.utilization)}
+          <div class="note">Postos com utilização próxima de 100% tendem a acumular fila a montante.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Resultado da simulação de eventos discretos</h3>
+        <div class="kpi-grid">
+          <div class="kpi"><div class="label">Throughput simulado</div><div class="value">${fmt(sim.throughputHora,1)}<span class="unit">pçs/h</span></div></div>
+          <div class="kpi"><div class="label">Lead time médio</div><div class="value">${fmt(sim.avgLeadTime,0)}<span class="unit">s/peça</span></div></div>
+          <div class="kpi"><div class="label">Fila média (pior posto)</div><div class="value">${fmt(Math.max(...sim.avgWait),1)}<span class="unit">s</span></div></div>
+          <div class="kpi"><div class="label">Peças simuladas</div><div class="value">${fmtInt(sim.n)}<span class="unit">un.</span></div></div>
+        </div>
+        <div class="note">Tempo médio de espera em fila antes de cada posto (as peças entram na linha no ritmo do takt time):</div>
+        <div style="margin-top:10px">${waitBars(baseline.config.stations, sim.avgWait)}</div>
+      </div>
+    `;
+  }
+
+  // ---------- STEP 3: scenarios ----------
+  let draftStations = null;
+
+  function renderStep3(){
+    const el = document.getElementById("step3Content");
+    if (!baseline){ return; }
+
+    if (!draftStations) draftStations = clone(baseline.config.stations);
+
+    let scenarioListHtml = "";
+    if (scenarios.length === 0) {
+      scenarioListHtml = `<div class="empty-state" style="padding:24px 0"><div class="icon">◧</div>Nenhum cenário criado ainda.</div>`;
+    } else {
+      scenarioListHtml = scenarios.map(sc => `
+        <div class="scenario-card">
+          <div class="meta">
+            <div class="name">${escapeAttr(sc.name)}</div>
+            <div class="sub">${sc.config.stations.length} postos · gargalo: ${escapeAttr(sc.config.stations[sc.indicators.bottleneckIdx].name)}</div>
+          </div>
+          <div class="metrics">
+            <div class="m"><div class="v">${fmt(sc.indicators.eficiencia,0)}%</div><div class="l">eficiência</div></div>
+            <div class="m"><div class="v">${fmt(sc.sim.throughputHora,0)}</div><div class="l">pçs/h</div></div>
+          </div>
+          <button class="icon-btn" data-rm-scenario="${sc.id}" title="Remover cenário">✕</button>
+        </div>
+      `).join("");
+    }
+
+    el.innerHTML = `
+      <div class="card">
+        <h3>Editar configuração do cenário</h3>
+        <div class="field-row">
+          <div>
+            <label for="scenarioName">Nome do cenário</label>
+            <input type="text" id="scenarioName" value="Cenário ${scenarioSeq}">
+          </div>
+        </div>
+        <table class="stations">
+          <thead><tr><th class="num-col">#</th><th>Posto</th><th class="time-col">Tempo de operação (s)</th><th class="rm-col"></th></tr></thead>
+          <tbody id="draftBody"></tbody>
+        </table>
+        <div class="actions-row">
+          <button class="btn secondary" id="draftAddBtn">+ adicionar posto</button>
+          <button class="btn secondary" id="draftResetBtn">restaurar situação atual</button>
+        </div>
+        <div class="actions-row">
+          <button class="btn" id="draftSimBtn">Simular cenário</button>
+          <span class="slider-value" id="draftStatus"></span>
+        </div>
+      </div>
+
+      <h3 style="margin:24px 0 10px;font-size:13px;color:var(--muted);font-weight:600;">Cenários simulados</h3>
+      ${scenarioListHtml}
+    `;
+
+    renderDraftTable();
+
+    document.getElementById("draftAddBtn").addEventListener("click", () => {
+      draftStations.push({ name: "Posto " + (draftStations.length + 1), time: 40 });
+      renderDraftTable();
+    });
+    document.getElementById("draftResetBtn").addEventListener("click", () => {
+      draftStations = clone(baseline.config.stations);
+      renderDraftTable();
+    });
+    document.getElementById("draftSimBtn").addEventListener("click", () => {
+      if (draftStations.some(s => !s.time || s.time <= 0)) {
+        document.getElementById("draftStatus").textContent = "verifique os tempos de operação";
+        return;
+      }
+      const name = document.getElementById("scenarioName").value.trim() || ("Cenário " + scenarioSeq);
+      const cfg = {
+        jornada: baseline.config.jornada,
+        demanda: baseline.config.demanda,
+        variabilidade: baseline.config.variabilidade,
+        npecas: baseline.config.npecas,
+        stations: clone(draftStations),
+      };
+      const indicators = calcIndicators(cfg);
+      const sim = simulate(cfg);
+      scenarios.push({ id: scenarioSeq++, name, config: cfg, indicators, sim });
+      draftStations = clone(baseline.config.stations);
+      renderStep3();
+      renderStep4();
+    });
+
+    el.querySelectorAll("[data-rm-scenario]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = parseInt(btn.getAttribute("data-rm-scenario"), 10);
+        scenarios = scenarios.filter(s => s.id !== id);
+        renderStep3();
+        renderStep4();
+      });
+    });
+  }
+
+  function renderDraftTable(){
+    const body = document.getElementById("draftBody");
+    if (!body) return;
+    body.innerHTML = "";
+    draftStations.forEach((st, i) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="num-col">${i+1}</td>
+        <td><input type="text" data-didx="${i}" data-dfield="name" value="${escapeAttr(st.name)}"></td>
+        <td class="time-col"><input type="number" min="1" step="1" data-didx="${i}" data-dfield="time" value="${st.time}"></td>
+        <td class="rm-col">${draftStations.length > 1 ? `<button class="icon-btn" data-drm="${i}">✕</button>` : ""}</td>
+      `;
+      body.appendChild(tr);
+    });
+    body.addEventListener("input", draftInputHandler);
+    body.addEventListener("click", draftClickHandler);
+  }
+  function draftInputHandler(e){
+    const idx = e.target.getAttribute("data-didx");
+    const field = e.target.getAttribute("data-dfield");
+    if (idx === null) return;
+    if (field === "name") draftStations[idx].name = e.target.value;
+    if (field === "time") draftStations[idx].time = parseFloat(e.target.value) || 0;
+  }
+  function draftClickHandler(e){
+    const rm = e.target.getAttribute("data-drm");
+    if (rm !== null){
+      draftStations.splice(parseInt(rm,10),1);
+      renderDraftTable();
+    }
+  }
+
+  // ---------- STEP 4: comparison ----------
+  function renderStep4(){
+    const el = document.getElementById("step4Content");
+    if (!baseline){ return; }
+    const all = [{ id: 0, name: "Situação atual", config: baseline.config, indicators: baseline.indicators, sim: baseline.sim, isBaseline: true }, ...scenarios];
+
+    const maxEff = Math.max(...all.map(s => s.indicators.eficiencia), 1);
+    const maxThroughput = Math.max(...all.map(s => s.sim.throughputHora), 1);
+
+    const rows = all.map(s => `
+      <tr class="${s.isBaseline ? 'baseline':''}">
+        <td class="name">${escapeAttr(s.name)}</td>
+        <td class="num">${fmt(s.indicators.taktTime,0)}s</td>
+        <td class="num">${fmt(s.indicators.cycleTime,0)}s</td>
+        <td class="num">${fmt(s.indicators.eficiencia,0)}%</td>
+        <td class="num">${fmtInt(s.indicators.capacidade)}</td>
+        <td class="num">${fmt(s.sim.throughputHora,0)}</td>
+        <td class="num">${fmt(s.sim.avgLeadTime,0)}s</td>
+        <td>${escapeAttr(s.config.stations[s.indicators.bottleneckIdx].name)}</td>
+      </tr>
+    `).join("");
+
+    const effBars = all.map(s => `
+      <div class="bar-row">
+        <div class="name">${escapeAttr(s.name)}</div>
+        <div class="bar-track"><div class="bar-fill ${s.isBaseline ? '' : ''}" style="width:${(s.indicators.eficiencia/maxEff)*100}%"></div></div>
+        <div class="val">${fmt(s.indicators.eficiencia,0)}%</div>
+      </div>`).join("");
+
+    const throughputBars = all.map(s => `
+      <div class="bar-row">
+        <div class="name">${escapeAttr(s.name)}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${(s.sim.throughputHora/maxThroughput)*100}%"></div></div>
+        <div class="val">${fmt(s.sim.throughputHora,0)}</div>
+      </div>`).join("");
+
+    el.innerHTML = `
+      <div class="card">
+        <h3>Tabela comparativa</h3>
+        <div style="overflow-x:auto">
+        <table class="compare">
+          <thead><tr>
+            <th>Cenário</th><th>Takt time</th><th>Tempo de ciclo</th><th>Eficiência</th><th>Capacidade (pçs/dia)</th><th>Throughput sim. (pçs/h)</th><th>Lead time médio</th><th>Gargalo</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="card">
+          <h3>Eficiência de balanceamento</h3>
+          <div class="bars">${effBars}</div>
+        </div>
+        <div class="card">
+          <h3>Throughput simulado (peças/h)</h3>
+          <div class="bars">${throughputBars}</div>
+        </div>
+      </div>
+      ${scenarios.length === 0 ? '<div class="note">Crie cenários no passo 3 para compará-los com a situação atual.</div>' : ''}
+    `;
+  }
+
+  // ---------- calc trigger ----------
+  document.getElementById("calcBtn").addEventListener("click", () => {
+    if (!(numVal("jornada") > 0) || !(numVal("demanda") > 0)) {
+      document.getElementById("calcStatus").textContent = "informe jornada e demanda maiores que zero";
+      return;
+    }
+    if (stations.some(s => !s.time || s.time <= 0)) {
+      document.getElementById("calcStatus").textContent = "verifique os tempos de operação";
+      return;
+    }
+    const cfg = {
+      jornada: numVal("jornada"),
+      demanda: numVal("demanda"),
+      variabilidade: numVal("variabilidade"),
+      npecas: numVal("npecas"),
+      stations: clone(stations),
+    };
+    const indicators = calcIndicators(cfg);
+    const sim = simulate(cfg);
+    baseline = { config: cfg, indicators, sim };
+    scenarios = [];
+    draftStations = clone(baseline.config.stations);
+    saveSession();
+    document.getElementById("calcStatus").textContent = "calculado ✓";
+    renderStep2();
+    renderStep3();
+    renderStep4();
+    goToStep(2);
+  });
+
+})();
+</script>
+</body>
+</html>
